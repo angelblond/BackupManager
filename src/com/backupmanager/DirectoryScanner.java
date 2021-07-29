@@ -9,10 +9,12 @@ public class DirectoryScanner {
 	private String currentPath;
 	private ArrayList<FileDetails> fileList;
 	private ArrayList<FileDetails> directoriesList;
+	private String scanningMode;
 	private boolean debugMode;
 	
-	public DirectoryScanner(String currentPath, boolean debugMode) {
+	public DirectoryScanner(String currentPath, String scanningMode, boolean debugMode) {
 		this.currentPath = currentPath;
+		this.scanningMode = scanningMode;
 		this.debugMode = debugMode;
 		this.fileList = new ArrayList<FileDetails>();
 		this.directoriesList = new ArrayList<FileDetails>();
@@ -30,6 +32,10 @@ public class DirectoryScanner {
 		return directoriesList;
 	}
 
+	public void setScanningMode(String scanningMode) {
+		this.scanningMode = scanningMode;
+	}
+	
 	public void setDebugMode(boolean debugMode) {
 		this.debugMode = debugMode;
 	}
@@ -58,8 +64,12 @@ public class DirectoryScanner {
 				this.directoriesList.add(oneDir);
 			}
 			else {
-				hasher.setFilePath(path);
-				hash = hasher.getMD5Checksum();
+				
+				if(this.scanningMode.equals("full")) {
+					hasher.setFilePath(path);
+					hash = hasher.getMD5Checksum();
+				}
+				
 				size = currentFile.length();
 				lastModified = new Date(currentFile.lastModified());
 				
