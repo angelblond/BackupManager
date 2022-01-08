@@ -6,6 +6,10 @@ import java.util.Date;
 
 public class DirectoryScanner {
 	
+	static {
+		System.setProperty("sun.jnu.encoding", "UTF-8");
+	}
+	
 	private String currentPath;
 	private ArrayList<FileDetails> fileList;
 	private ArrayList<FileDetails> directoriesList;

@@ -37,19 +37,22 @@ public class Starter {
 	}
 	
 	
-	private static void copyDirectory(File sourceDirectory, File destinationDirectory) throws IOException {
+	private static int copyDirectory(File sourceDirectory, File destinationDirectory) throws IOException {
+		int totalFiles = 0;
 	    if (!destinationDirectory.exists()) {
 	        destinationDirectory.mkdir();
 	    }
 	    for (String oneFile : sourceDirectory.list()) {
-	        copyDirectoryMain(new File(sourceDirectory, oneFile), new File(destinationDirectory, oneFile));
+	        totalFiles += copyDirectoryMain(new File(sourceDirectory, oneFile), new File(destinationDirectory, oneFile));
 	    }
+	    return totalFiles;
 	}
 	
-	private static void copyDirectoryMain(File source, File destination) {
+	private static int copyDirectoryMain(File source, File destination) {
+		int fileCount = 0;
 		if (source.isDirectory()) {
 			try {
-				copyDirectory(source, destination);
+				fileCount += copyDirectory(source, destination);
 			}
 			catch(IOException ioe) {
 				ioe.printStackTrace();
@@ -58,14 +61,16 @@ public class Starter {
 		else {
 			try {
 				Files.copy(source.toPath(), destination.toPath());
+				fileCount++;
 			}
 			catch(IOException ioe) {
 				ioe.printStackTrace();
 			}
 		}
+		return fileCount;
 	}
 	
-	private static void searchDirectory(String rootDirectoryModel, String rootDirectoryReceiver, Properties settings) {
+	private static Results searchDirectory(String rootDirectoryModel, String rootDirectoryReceiver, Properties settings) {
 		String scanningMode = settings.getProperty("scanningMode");
 		String differencePolicy = settings.getProperty("differencePolicy");
 		String oldNamesPolicy = settings.getProperty("oldNamesPolicy");
@@ -73,6 +78,13 @@ public class Starter {
 		String oldFilesPolicy = settings.getProperty("oldFilesPolicy");
 		String debugMode = settings.getProperty("debugMode");
 		boolean debug = Boolean.parseBoolean(debugMode);
+		
+		//Statistics
+		int filesAdded = 0;
+		int filesUpdated = 0;
+		int filesRenamed = 0;
+		int filesDeleted = 0;
+		int problems = 0;
 		
 		System.out.println("Analyzing directory: " + rootDirectoryModel);
 		
@@ -105,11 +117,13 @@ public class Starter {
 								File newFile = new File(evalFile.getPath());
 								try {
 									Files.copy(newFile.toPath(), receptorFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+									filesUpdated++;
 									System.out.println(baseMessage + "Replaced by newest version.");
 								}
 								catch(IOException ioe) {
 									ioe.printStackTrace();
 									System.out.println(baseMessage + "Problems replacing by newest version.");
+									problems++;
 								}
 								
 							}
@@ -122,11 +136,13 @@ public class Starter {
 								File newFile = new File(evalFile.getPath());
 								try {
 									Files.copy(newFile.toPath(), receptorFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+									filesAdded++;
 									System.out.println(baseMessage + "Created new file version alongside with old one.");
 								}
 								catch(IOException ioe) {
 									ioe.printStackTrace();
 									System.out.println(baseMessage + "Problems creating new file version.");
+									problems++;
 								}
 							}
 							else if(differencePolicy.equals("avoid")) {
@@ -155,10 +171,12 @@ public class Starter {
 								
 								try {
 									Files.move(newFile.toPath(), receptorFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+									filesRenamed++;
 									System.out.println(baseMessage + "File renamed as original.");
 								}
 								catch(IOException ioe) {
 									System.out.println(baseMessage + "Problems renaming file");
+									problems++;
 									ioe.printStackTrace();
 								}
 							}
@@ -181,10 +199,12 @@ public class Starter {
 					
 					try {
 						Files.copy(newFile.toPath(), receptorFile.toPath());
+						filesAdded++;
 						System.out.println(baseMessage + "File has been added.");
 					}
 					catch(IOException ioe) {
 						System.out.println(baseMessage + "Problems adding file.");
+						problems++;
 						ioe.printStackTrace();
 					}
 				}
@@ -204,9 +224,11 @@ public class Starter {
 					boolean successfullyDeleted = currentFile.delete();
 					if(successfullyDeleted) {
 						System.out.println(baseMessage + "File has been deleted");
+						filesDeleted++;
 					}
 					else {
 						System.out.println(baseMessage + "Problems deleting file.");
+						problems++;
 					}
 				}
 				else if(oldFilesPolicy.equals("remain")) {
@@ -226,7 +248,12 @@ public class Starter {
 			File currentDirectory = new File(internalReceiver);
 			if(currentDirectory.exists()) {
 				//CASE: recursion
-				searchDirectory(internalModel, internalReceiver, settings);
+				Results innerResults = searchDirectory(internalModel, internalReceiver, settings);
+				filesAdded += innerResults.getFilesAdded();
+				filesUpdated += innerResults.getFilesUpdated();
+				filesRenamed += innerResults.getFilesRenamed();
+				filesDeleted += innerResults.getFilesDeleted();
+				problems += innerResults.getProblems();
 			}
 			else {
 				//CASE: new directory found 
@@ -236,12 +263,13 @@ public class Starter {
 					File newDirectory = new File(innerDirectory.getPath());
 					File receptorDirectory = new File(rootDirectoryReceiver + "\\" + innerDirectory.getName());
 					try {
-						copyDirectory(newDirectory, receptorDirectory);
+						filesAdded += copyDirectory(newDirectory, receptorDirectory);
 						System.out.println(baseMessage + "Directory has been added.");
 					}
 					catch(IOException ioe) {
 						ioe.printStackTrace();
 						System.out.println(baseMessage + "Problem adding directory.");
+						problems++;
 					}
 				}
 				else if(newFilesPolicy.equals("avoid")) {
@@ -249,12 +277,35 @@ public class Starter {
 				}
 			}
 		}
+		
+		if(debug) {
+			System.out.println("\nIn directory " + rootDirectoryReceiver + "\n");
+			System.out.println("Files added: " + filesAdded);
+			System.out.println("Files updated: " + filesUpdated);
+			System.out.println("Files renamed: " + filesRenamed);
+			System.out.println("Files deleted: " + filesDeleted);
+			System.out.println("Problems with files or directories: " + problems + "\n");
+		}
+		
+		Results levelResults = new Results(filesAdded, filesUpdated, filesRenamed, filesDeleted, problems);
+		
+		return levelResults;
 	}
 
 	public static void main(String[] args) {
 		Properties settings = loadPropertiesFile();
 		String rootDirectoryModel = settings.getProperty("rootDirectoryModel");
 		String rootDirectoryReceiver = settings.getProperty("rootDirectoryReceiver");
-		searchDirectory(rootDirectoryModel, rootDirectoryReceiver, settings);
+		Results finalResults = searchDirectory(rootDirectoryModel, rootDirectoryReceiver, settings);
+		System.out.println("\n*********************************************");
+		System.out.println("Synchronization Summary");
+		System.out.println("In directory " + rootDirectoryReceiver + "\n");
+		System.out.println("Files added: " + finalResults.getFilesAdded());
+		System.out.println("Files updated: " + finalResults.getFilesUpdated());
+		System.out.println("Files renamed: " + finalResults.getFilesRenamed());
+		System.out.println("Files deleted: " + finalResults.getFilesDeleted());
+		System.out.println("Problems with files or directories: " + finalResults.getProblems() + "\n");
+		System.out.println("*********************************************");
+		System.out.println("\n\nALL TASKS FINISHED");
 	}
 }
