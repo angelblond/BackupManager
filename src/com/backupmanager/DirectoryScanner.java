@@ -44,6 +44,7 @@ public class DirectoryScanner {
 		this.debugMode = debugMode;
 	}
 	
+	//TODO: check if there are duplicates inside the same folder first
 	public void startScanning() {
 		File directory = new File(currentPath);
 		String[] fileList = directory.list();

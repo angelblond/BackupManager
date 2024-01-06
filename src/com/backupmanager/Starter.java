@@ -70,6 +70,49 @@ public class Starter {
 		return fileCount;
 	}
 	
+	private static int[] deleteDirectory(String path) {	
+		
+		int filesDeleted = 0;
+		int problems = 0;
+		int successful = 1;
+		
+		File directoryToBeDeleted = new File(path);
+		File[] allContents = directoryToBeDeleted.listFiles();
+		if (allContents != null) {
+	        for (File file : allContents) {
+	        	if(file.isDirectory()) {
+	        		int[] internal = deleteDirectory(file.getAbsolutePath());
+	        		successful = (internal[0] == 1) ? 1 : 0;
+	        		filesDeleted += internal[1];
+	        		problems += internal[2];
+	        	}
+	        	else {
+	        		String baseMessage = "\tOld file " + file.getName() + " found. ";
+	        		boolean successfullyDeleted = file.delete();
+	        		if(successfullyDeleted) {
+						System.out.println(baseMessage + "File has been deleted");
+						filesDeleted++;
+					}
+					else {
+						System.out.println(baseMessage + "Problems deleting file.");
+						problems++;
+					}
+	        	}
+	        }
+	    }
+		
+		boolean deleted = directoryToBeDeleted.delete();
+		successful = (deleted && (successful == 1)) ? 1 : 0;
+		if(deleted) {
+			System.out.println("\tDirectory " + path + " succesfully deleted");
+		}
+		else{
+			System.out.println("\tProblems deleting directory " + path);
+		}
+		int results[] = new int[]{successful, filesDeleted, problems};
+		return results;
+	}
+	
 	private static Results searchDirectory(String rootDirectoryModel, String rootDirectoryReceiver, Properties settings) {
 		String scanningMode = settings.getProperty("scanningMode");
 		String differencePolicy = settings.getProperty("differencePolicy");
@@ -239,6 +282,7 @@ public class Starter {
 		}
 		
 		ArrayList<FileDetails> modelDirectories = modelScanner.getDirectoriesList();
+		ArrayList<FileDetails> receiverDirectories = receiverScanner.getDirectoriesList();
 		
 		for(FileDetails innerDirectory : modelDirectories) {
 			
@@ -248,6 +292,16 @@ public class Starter {
 			File currentDirectory = new File(internalReceiver);
 			if(currentDirectory.exists()) {
 				//CASE: recursion
+				
+				
+				for(FileDetails oldDirectory : receiverDirectories) {
+					if(oldDirectory.getName().equals(innerDirectory.getName())) {
+						oldDirectory.setVisited(true);
+						break;
+					}
+				}
+				
+				
 				Results innerResults = searchDirectory(internalModel, internalReceiver, settings);
 				filesAdded += innerResults.getFilesAdded();
 				filesUpdated += innerResults.getFilesUpdated();
@@ -274,6 +328,30 @@ public class Starter {
 				}
 				else if(newFilesPolicy.equals("avoid")) {
 					System.out.println(baseMessage + "Directory has NOT been added.");
+				}
+			}
+		}
+		
+		
+		
+		for (FileDetails oldDirectory : receiverDirectories) {
+			//CASE: old directory (possibly deleted) found
+			if(!oldDirectory.isVisited()) {
+				String baseMessage = "\tOld directory " + oldDirectory.getName() + " found. ";
+				if(oldFilesPolicy.equals("delete")) {
+					int[] directoryDeletion = deleteDirectory(oldDirectory.getPath());
+					boolean successfullyDeleted = (directoryDeletion[0] == 1);
+					if(successfullyDeleted) {
+						System.out.println(baseMessage + "Directory has been deleted");
+					}
+					else {
+						System.out.println(baseMessage + "Problems deleting directory.");
+					}
+					filesDeleted += directoryDeletion[1];
+					problems += directoryDeletion[2];
+				}
+				else if(oldFilesPolicy.equals("remain")) {
+					System.out.println(baseMessage + "Directory remains");
 				}
 			}
 		}
