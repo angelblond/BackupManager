@@ -374,6 +374,19 @@ public class Starter {
 		Properties settings = loadPropertiesFile();
 		String rootDirectoryModel = settings.getProperty("rootDirectoryModel");
 		String rootDirectoryReceiver = settings.getProperty("rootDirectoryReceiver");
+		
+		File testDirectory1 = new File(rootDirectoryModel);
+		if (!testDirectory1.exists()) {
+			System.out.println("Error: model directory " + rootDirectoryModel + " not found");
+			return;
+		}
+		
+		File testDirectory2 = new File(rootDirectoryReceiver);
+		if (!testDirectory2.exists()) {
+			System.out.println("Error: receiver directory " + rootDirectoryReceiver + " not found");
+			return;
+		}
+		
 		Results finalResults = searchDirectory(rootDirectoryModel, rootDirectoryReceiver, settings);
 		System.out.println("\n*********************************************");
 		System.out.println("Synchronization Summary");
