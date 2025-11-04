@@ -62,6 +62,7 @@ public class Starter {
 			try {
 				Files.copy(source.toPath(), destination.toPath());
 				fileCount++;
+				System.out.println("\t" + destination.getAbsolutePath() + " File has been added.");
 			}
 			catch(IOException ioe) {
 				ioe.printStackTrace();
@@ -113,6 +114,15 @@ public class Starter {
 		return results;
 	}
 	
+	private static boolean isDuplicate(String pathModel, String pathReceiver, String filename) {
+		File original = new File(pathModel + "\\" + filename);
+		File receiver = new File(pathReceiver + "\\" + filename);
+		if(original.exists() && receiver.exists()) {
+			return true;
+		}
+		return false;
+	}
+	
 	private static Results searchDirectory(String rootDirectoryModel, String rootDirectoryReceiver, Properties settings) {
 		String scanningMode = settings.getProperty("scanningMode");
 		String differencePolicy = settings.getProperty("differencePolicy");
@@ -129,11 +139,17 @@ public class Starter {
 		int filesDeleted = 0;
 		int problems = 0;
 		
+		System.out.println("***************************************************************");
 		System.out.println("Analyzing directory: " + rootDirectoryModel);
+		System.out.println("***************************************************************\n");
 		
 		DirectoryScanner modelScanner = new DirectoryScanner(rootDirectoryModel, scanningMode, debug);
 		modelScanner.startScanning();
 		
+		System.out.println("***************************************************************");
+		System.out.println("Analyzing directory: " + rootDirectoryReceiver);
+		System.out.println("***************************************************************\n");
+				
 		DirectoryScanner receiverScanner = new DirectoryScanner(rootDirectoryReceiver, scanningMode, debug);
 		receiverScanner.startScanning();
 		
@@ -198,7 +214,7 @@ public class Starter {
 				else {
 					if(scanningMode.equals("full")) {
 						//CASE: different filename, same content
-						if(evalFile.getHash().equals(evalFileRec.getHash())) {
+						if(evalFile.getHash().equals(evalFileRec.getHash()) && !isDuplicate(rootDirectoryModel, rootDirectoryReceiver, evalFileRec.getName())) {
 							String baseMessage = "\tOld file name: " + evalFileRec.getName() + " for file " + evalFile.getName() + ". ";
 							
 							evalFile.setVisited(true);
